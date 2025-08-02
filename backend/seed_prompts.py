@@ -21,7 +21,7 @@ async def seed_prompts(force_overwrite: bool = False):
     print("🌱 Seeding database with initial AI prompts...")
     
     if force_overwrite:
-        print("⚠️  Force mode enabled - will overwrite existing prompts")
+        print("⚠️  Force mode enabled - will clear existing prompts and recreate all")
     
     if not settings.mongo_uri:
         print("❌ MONGO_URI not configured. Please set up your .env file.")
@@ -30,6 +30,15 @@ async def seed_prompts(force_overwrite: bool = False):
     # Initialize database
     db = await init_database(settings.mongo_uri)
     
+    # If force mode, clear the entire prompts collection
+    if force_overwrite:
+        try:
+            result = await db.ai_prompts.delete_many({})
+            print(f"🗑️  Cleared {result.deleted_count} existing prompts from database")
+        except Exception as e:
+            print(f"❌ Error clearing prompts collection: {e}")
+            return
+    
     prompts_to_create = [
         AIPrompt(
             name="contribution_triage_agent",
@@ -37,7 +46,7 @@ async def seed_prompts(force_overwrite: bool = False):
             status=PromptStatus.ACTIVE,
             description="Analyzes a new user contribution to decide the next AI action. Uses a fast, cheap model.",
             parameters=PromptParameters(
-                model="openrouter/google/gemini-2.5-flash-lite",
+                model="google/gemini-2.5-flash-lite",
                 temperature=0.1,
                 max_tokens=100,
                 response_format=ResponseFormat(type="json_object")
@@ -62,7 +71,7 @@ Respond only with a JSON object: {"action": "CHOSEN_ACTION"}"""
             status=PromptStatus.ACTIVE,
             description="AI facilitator that provides helpful, contextual responses to team members' questions using project context and briefings.",
             parameters=PromptParameters(
-                model="openrouter/google/gemini-2.5-flash",
+                model="google/gemini-2.5-flash",
                 temperature=0.7,
                 max_tokens=1000
             ),
@@ -103,7 +112,7 @@ Respond with your answer directly (no JSON formatting needed):"""
             assertivenessLevel=2,
             description="Comprehensive synthesis prompt that creates briefing packages with overall context and personalized briefings for each team member.",
             parameters=PromptParameters(
-                model="openrouter/google/gemini-2.5-flash",
+                model="google/gemini-2.5-flash",
                 temperature=0.2,
                 max_tokens=2048,
                 response_format=ResponseFormat(type="json_object")
@@ -160,32 +169,39 @@ Respond with your answer directly (no JSON formatting needed):"""
         )
     ]
     
+    # Now insert all prompts (either fresh insert or complete recreation after force clear)
     created_count = 0
-    updated_count = 0
-    skipped_count = 0
+    error_count = 0
     
     for prompt in prompts_to_create:
-        # Check if prompt already exists
-        existing = await db.get_active_prompt(prompt.name)
-        if existing and not force_overwrite:
-            print(f"⏭️  Skipped '{prompt.name}' (already exists)")
-            skipped_count += 1
-        elif existing and force_overwrite:
-            # Update existing prompt
-            await db.create_prompt(prompt)  # This will create a new version
-            print(f"🔄 Updated '{prompt.name}' using model '{prompt.parameters.model}'")
-            updated_count += 1
-        else:
+        try:
+            if not force_overwrite:
+                # Check if prompt already exists (only when not in force mode)
+                existing = await db.get_active_prompt(prompt.name)
+                if existing:
+                    print(f"⏭️  Skipped '{prompt.name}' (already exists)")
+                    continue
+            
             await db.create_prompt(prompt)
             print(f"✅ Created '{prompt.name}' using model '{prompt.parameters.model}'")
             created_count += 1
+            
+        except Exception as e:
+            print(f"❌ Error creating prompt '{prompt.name}': {e}")
+            error_count += 1
     
     print(f"\n🎉 Seeding complete!")
-    print(f"   Created: {created_count} prompts")
-    if updated_count > 0:
-        print(f"   Updated: {updated_count} prompts")
-    print(f"   Skipped: {skipped_count} prompts")
+    if force_overwrite:
+        print(f"   Recreated: {created_count} prompts (force mode)")
+    else:
+        print(f"   Created: {created_count} prompts")
     
+    if error_count > 0:
+        print(f"   Errors: {error_count} prompts failed")
+    
+    skipped_count = len(prompts_to_create) - created_count - error_count
+    if skipped_count > 0 and not force_overwrite:
+        print(f"   Skipped: {skipped_count} prompts (already existed)")
 
 
 def main():

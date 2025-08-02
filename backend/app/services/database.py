@@ -238,18 +238,69 @@ class DatabaseService:
             return None
 
     async def create_prompt(self, prompt: AIPrompt) -> Optional[ObjectId]:
-        """Create a new AI prompt"""
+        """Create a new prompt in the database"""
         try:
-            doc = prompt.model_dump(by_alias=True, exclude_none=True)
-            if "_id" not in doc:
-                doc["_id"] = ObjectId()
+            doc = prompt.model_dump(by_alias=True, exclude={"id"})
+            doc["createdAt"] = datetime.utcnow()
             
             result = await self.ai_prompts.insert_one(doc)
-            logger.info(f"Created AI prompt {prompt.name} v{prompt.version}")
+            logger.info(f"Created prompt '{prompt.name}' version {prompt.version}")
             return result.inserted_id
             
         except Exception as e:
-            logger.error(f"Error creating AI prompt: {e}")
+            logger.error(f"Error creating prompt '{prompt.name}': {e}")
+            return None
+
+    async def list_active_prompts(self) -> List[AIPrompt]:
+        """Get all active prompts (latest version of each)"""
+        try:
+            # Aggregate to get the latest version of each prompt name
+            pipeline = [
+                {"$match": {"status": PromptStatus.ACTIVE}},
+                {"$sort": {"name": 1, "version": -1}},
+                {"$group": {
+                    "_id": "$name",
+                    "latest_doc": {"$first": "$$ROOT"}
+                }},
+                {"$replaceRoot": {"newRoot": "$latest_doc"}},
+                {"$sort": {"name": 1}}
+            ]
+            
+            docs = await self.ai_prompts.aggregate(pipeline).to_list(length=None)
+            
+            prompts = []
+            for doc in docs:
+                if "_id" in doc:
+                    doc["_id"] = str(doc["_id"])
+                prompts.append(AIPrompt(**doc))
+            
+            return prompts
+            
+        except Exception as e:
+            logger.error(f"Error listing active prompts: {e}")
+            return []
+
+    async def get_prompt_by_name_and_version(self, name: str, version: Optional[int] = None) -> Optional[AIPrompt]:
+        """Get a specific prompt by name and version. If version is None, gets the latest active version."""
+        try:
+            query = {"name": name}
+            if version is not None:
+                query["version"] = version
+            else:
+                query["status"] = PromptStatus.ACTIVE
+            
+            sort_order = [("version", -1)] if version is None else None
+            
+            doc = await self.ai_prompts.find_one(query, sort=sort_order)
+            
+            if doc:
+                if "_id" in doc:
+                    doc["_id"] = str(doc["_id"])
+                return AIPrompt(**doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting prompt '{name}' version {version}: {e}")
             return None
 
     # ===============================

@@ -10,24 +10,36 @@ from app.services.ai_service import AIService
 from app.config import settings
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/webhook",
+    tags=["Webhook Processing"],
+    responses={
+        400: {"description": "Invalid request format"},
+        401: {"description": "Invalid or missing authentication token"},
+        404: {"description": "Resource not found"}
+    }
+)
+
 security = HTTPBearer()
 
 
 def verify_webhook_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Verify the Bearer token for webhook authentication"""
     if credentials.credentials != settings.forge_ai_api_key:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
     return credentials.credentials
 
 
 # Initialize AI service
-ai_service = AIService(
-    api_key=settings.openrouter_api_key
+ai_service = AIService(api_key=settings.openrouter_api_key)
+
+
+@router.post(
+    "/process-contribution",
+    response_model=ProcessContributionResponse,
+    summary="Process New Contribution",
+    description="Webhook endpoint to process new user contributions through the AI triage system"
 )
-
-
-@router.post("/webhook/process-contribution", response_model=ProcessContributionResponse)
 async def process_contribution_webhook(
     request: ProcessContributionRequest,
     background_tasks: BackgroundTasks,
@@ -35,8 +47,27 @@ async def process_contribution_webhook(
     token: str = Depends(verify_webhook_token)
 ):
     """
-    Webhook endpoint to receive and process new contributions from the SvelteKit BFF.
-    This implements the PoC architecture's asynchronous handoff mechanism.
+    **Main AI Processing Webhook** - Processes new contributions through the AI system.
+    
+    This endpoint implements the core AI workflow:
+    1. **Triage**: Analyze contribution to decide next action
+    2. **Action**: Execute direct response or full synthesis based on triage
+    
+    **Authentication Required**: Bearer token in Authorization header
+    
+    **Workflow:**
+    - Validates contribution and forge exist
+    - Queues AI processing as background task
+    - Returns immediate 200 OK response
+    - AI processing happens asynchronously
+    
+    **Request Body:**
+    ```json
+    {
+      "forgeId": "507f1f77bcf86cd799439011",
+      "newContributionId": "507f1f77bcf86cd799439012"
+    }
+    ```
     """
     try:
         # Validate ObjectIds
@@ -81,28 +112,45 @@ async def process_contribution_webhook(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get(
+    "/health",
+    summary="Webhook Health Check",
+    description="Health check endpoint specifically for webhook service status"
+)
+async def webhook_health():
+    """
+    **Webhook Service Health** - Quick health check for webhook processing capability.
+    
+    Returns webhook service status and AI configuration information.
+    Useful for monitoring and debugging webhook processing issues.
+    """
+    return {
+        "status": "healthy",
+        "service": "forge-ai-webhook",
+        "ai_configuration": "Dynamic - models configured per prompt in database",
+        "authentication": "Bearer token required",
+        "processing": "Asynchronous background tasks"
+    }
+
+
 async def process_contribution_background(db: DatabaseService, forge_id: ObjectId, contribution_id: ObjectId):
     """
-    Background task that performs the actual AI processing.
-    This implements the AI triage and action system from the architecture.
+    **Background AI Processing Task**
+    
+    Implements the multi-stage AI processing pipeline:
+    1. Triage contribution to determine action
+    2. Execute appropriate AI response (direct answer or synthesis)
+    3. Store results back to database
+    
+    This runs asynchronously after webhook returns 200 OK.
     """
     try:
         await ai_service.process_contribution(db, forge_id, contribution_id)
         logger.info(f"Successfully processed contribution {contribution_id}")
         
     except Exception as e:
-        logger.error(f"Error in background processing for contribution {contribution_id}: {e}")
+        logger.error(f"Error in background AI processing for contribution {contribution_id}: {e}")
         # In a production system, you might want to:
         # - Retry failed tasks
         # - Send error notifications
-        # - Update contribution status to "failed"
-
-
-@router.get("/webhook/health")
-async def webhook_health():
-    """Health check endpoint for the webhook service"""
-    return {
-        "status": "healthy",
-        "service": "forge-ai-webhook",
-        "ai_configuration": "Dynamic - models configured per prompt in database"
-    } 
+        # - Update contribution status to indicate failure 

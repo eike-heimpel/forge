@@ -1,15 +1,15 @@
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.config import settings
 from app.services.database import init_database, db_service
 from app.routes.webhook import router as webhook_router
-from app.models.schemas import HealthResponse, ErrorResponse
+from app.routes.prompts import router as prompts_router
+from app.routes.system import router as system_router
 
 
 # Configure logging
@@ -62,9 +62,30 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title="Forge AI Service",
-    description="AI processing service for Forge collaboration tool - PoC Architecture",
+    description="""
+    Production-ready AI processing service for Forge collaboration tool.
+    
+    ## Features
+    
+    * **AI-Powered Contribution Triage** - Automatically analyze and route user contributions
+    * **Dynamic Prompt Management** - Database-driven prompt configuration with versioning
+    * **Comprehensive Testing API** - Test and evaluate prompts before deployment
+    * **Asynchronous Processing** - High-performance webhook processing with background tasks
+    
+    ## Authentication
+    
+    Webhook endpoints require Bearer token authentication.
+    
+    ## Models
+    
+    Using Google Gemini 2.5 models via OpenRouter:
+    - **Flash-Lite**: Fast, cost-effective triage decisions
+    - **Flash**: Comprehensive responses and synthesis generation
+    """,
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # Add CORS middleware
@@ -76,62 +97,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(webhook_router, prefix="/api")
-
-
-# Root endpoints
-@app.get("/")
-async def root():
-    return {
-        "message": "Forge AI Service is running",
-        "version": "1.0.0",
-        "architecture": "PoC with webhook processing",
-        "environment": settings.environment
-    }
-
-
-@app.get("/health", response_model=HealthResponse)
-async def health_check():
-    """Comprehensive health check endpoint"""
-    # Check database connectivity
-    db_healthy = False
-    if db_service:
-        try:
-            db_healthy = await db_service.health_check()
-        except Exception as e:
-            logger.error(f"Database health check failed: {e}")
-    
-    return HealthResponse(
-        status="healthy" if db_healthy else "unhealthy",
-        service="forge-ai-service"
-    )
-
-
-@app.get("/api/status")
-async def service_status():
-    """Detailed service status endpoint"""
-    db_healthy = False
-    if db_service:
-        try:
-            db_healthy = await db_service.health_check()
-        except Exception:
-            pass
-    
-    return {
-        "service": "forge-ai-service",
-        "version": "1.0.0", 
-        "environment": settings.environment,
-        "database": {
-            "connected": db_healthy,
-            "database_name": settings.mongo_database
-        },
-        "ai": {
-            "configuration": "Dynamic - models configured per prompt in database",
-            "api_provider": "OpenRouter"
-        },
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+# Register route modules with proper organization
+app.include_router(system_router)  # Root level endpoints (/, /health, /status)
+app.include_router(webhook_router, prefix="/api")  # /api/webhook/*
+app.include_router(prompts_router, prefix="/api")   # /api/prompts/*
 
 
 async def initialize_default_prompts():
@@ -148,9 +117,9 @@ async def initialize_default_prompts():
     for prompt_name in required_prompts:
         prompt = await db_service.get_active_prompt(prompt_name)
         if not prompt:
-            logger.warning(f"Required prompt '{prompt_name}' not found in database. AI functionality may not work.")
+            logger.warning(f"Required prompt '{prompt_name}' not found in database. Run 'make seed-prompts-force' to initialize prompts.")
         else:
-            logger.info(f"Found prompt '{prompt_name}' v{prompt.version} using model '{prompt.parameters.model}'")
+            logger.info(f"✓ Found prompt '{prompt_name}' v{prompt.version} using model '{prompt.parameters.model}'")
     
     logger.info("Prompt validation complete")
 

@@ -182,3 +182,46 @@ class HealthResponse(BaseModel):
     status: str
     service: str
     timestamp: datetime = Field(default_factory=utc_now) 
+
+
+# ===============================
+# PROMPT TESTING API SCHEMAS
+# ===============================
+
+class PromptInfo(BaseModel):
+    """Basic prompt information for listing/discovery"""
+    name: str
+    version: int
+    description: str
+    expected_vars: List[str]
+    parameters: PromptParameters
+    assertivenessLevel: Optional[int] = None
+
+
+class PromptTestRequest(BaseModel):
+    """Request to test a prompt with provided variables"""
+    variables: Dict[str, Any]
+    
+
+class PromptTestResponse(BaseModel):
+    """Response from testing a prompt"""
+    prompt_name: str
+    prompt_version: int
+    rendered_prompt: str
+    model_response: str
+    execution_time_ms: int
+    model_used: str
+    tokens_used: Optional[int] = None
+    
+
+class PromptsListResponse(BaseModel):
+    """Response listing available prompts"""
+    prompts: List[PromptInfo]
+    total_count: int
+
+
+class PromptDetailResponse(BaseModel):
+    """Detailed information about a specific prompt"""
+    prompt: PromptInfo
+    template_preview: str  # First 200 chars of template
+    sample_variables: Dict[str, str]  # Example values for each expected var 
