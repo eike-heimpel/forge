@@ -1,6 +1,6 @@
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -130,7 +130,7 @@ async def service_status():
             "configuration": "Dynamic - models configured per prompt in database",
             "api_provider": "OpenRouter"
         },
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 

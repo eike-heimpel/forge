@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union, Annotated
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator, PlainSerializer
 from pydantic_core import core_schema
 from bson import ObjectId
+
+
+def utc_now() -> datetime:
+    """Helper function for timezone-aware UTC datetime"""
+    return datetime.now(timezone.utc)
 
 
 class PyObjectId(str):
@@ -54,7 +59,7 @@ class Forge(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     goal: str
     status: ForgeStatus = ForgeStatus.ACTIVE
-    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    createdAt: datetime = Field(default_factory=utc_now)
     lastSynthesisId: Optional[PyObjectId] = None
     members: List[ForgeMember]
 
@@ -95,7 +100,7 @@ class Contribution(BaseModel):
     forgeId: PyObjectId
     authorId: PyObjectId
     type: ContributionType
-    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    createdAt: datetime = Field(default_factory=utc_now)
     content: Union[UserMessageContent, AIResponseContent, AISynthesisContent]
     sourceContributionIds: Optional[List[PyObjectId]] = []
 
@@ -176,4 +181,4 @@ class ErrorResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     service: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow) 
+    timestamp: datetime = Field(default_factory=utc_now) 
