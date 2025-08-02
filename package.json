@@ -1,0 +1,10 @@
+{
+  "name": "forge-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start:backend": "cd backend && uvicorn app.main:app --reload",
+    "start:frontend": "cd frontend && npm run dev",
+    "start": "npm run start:backend & npm run start:frontend"
+  }
+}
