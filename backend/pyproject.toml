@@ -1,0 +1,30 @@
+[project]
+name = "forge-ai-backend"
+version = "1.0.0"
+description = "AI processing service for Forge collaboration tool - PoC Architecture"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.116.1",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "motor>=3.7.1",
+    "openai>=1.98.0",
+    "pydantic>=2.11.7",
+    "pydantic-settings>=2.10.1",
+    "pymongo>=4.13.2",
+    "python-dotenv>=1.1.1",
+    "python-multipart>=0.0.20",
+    "uvicorn[standard]>=0.35.0",
+]
+
+[project.scripts]
+generate-schemas = "generate_schemas:generate_schemas"
+seed-prompts = "seed_prompts:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

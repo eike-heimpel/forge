@@ -1,0 +1,13 @@
+{
+  "title": "PromptStatus",
+  "type": "string",
+  "enum": [
+    "active",
+    "inactive",
+    "deprecated"
+  ],
+  "description": "Enumeration of PromptStatus values",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "generated_from": "forge-ai-backend (automated)",
+  "version": "1.0.0"
+}

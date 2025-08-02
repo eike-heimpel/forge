@@ -1,0 +1,50 @@
+{
+  "$defs": {
+    "ResponseFormat": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ResponseFormat",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "model": {
+      "default": "google/gemini-2.5-flash",
+      "title": "Model",
+      "type": "string"
+    },
+    "temperature": {
+      "default": 0.7,
+      "title": "Temperature",
+      "type": "number"
+    },
+    "max_tokens": {
+      "default": 1000,
+      "title": "Max Tokens",
+      "type": "integer"
+    },
+    "response_format": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResponseFormat"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "title": "PromptParameters",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "generated_from": "forge-ai-backend (automated)",
+  "version": "1.0.0"
+}

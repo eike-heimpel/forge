@@ -1,0 +1,28 @@
+{
+  "title": "Forge AI Backend Schemas (Auto-Generated)",
+  "description": "JSON schemas dynamically discovered from Pydantic models in the backend.",
+  "version": "1.0.0",
+  "generated_at": "auto",
+  "schemas": [
+    "ai-prompt.json",
+    "ai-response-content.json",
+    "ai-synthesis-content.json",
+    "ai-synthesis-structured.json",
+    "contribution-type.json",
+    "contribution.json",
+    "error-response.json",
+    "forge-member.json",
+    "forge-status.json",
+    "forge.json",
+    "health-response.json",
+    "member-role.json",
+    "process-contribution-request.json",
+    "process-contribution-response.json",
+    "prompt-parameters.json",
+    "prompt-status.json",
+    "response-format.json",
+    "triage-action.json",
+    "triage-response.json",
+    "user-message-content.json"
+  ]
+}

@@ -1,99 +1,117 @@
-# Forge AI Service
+# Forge AI Backend
 
-FastAPI backend service for Forge - handles LLM processing and AI synthesis for team collaboration.
+Production-ready FastAPI service implementing the **PoC Architecture** for AI-powered collaboration.
 
-## Features
+## 🏗️ Architecture
 
-- **Synthesis Endpoint**: `/api/synthesize` - Processes team conversations and generates comprehensive briefings
-- **Chat Endpoint**: `/api/chat` - Handles individual questions and context additions
-- **MongoDB Integration**: Stores and retrieves forge state data
-- **OpenRouter LLM**: Uses OpenRouter API for AI text generation
+- **Webhook-based processing**: SvelteKit BFF → Python AI Service
+- **Database-driven prompts**: All AI models & parameters stored in MongoDB
+- **AI Triage System**: Fast decision → Targeted action (LOG_ONLY, ANSWER_DIRECTLY, SYNTHESIZE)
+- **Async processing**: Fast webhook response + background AI work
 
-## Development Setup
+## 🚀 Setup
 
-1. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 1. Environment
 
-2. **Set environment variables:**
-   ```bash
-   export MONGO_URI="your_mongodb_connection_string"
-   export OPENROUTER_API_KEY="your_openrouter_api_key"
-   export FORGE_AI_API_KEY="your_api_key_for_authentication"
-   ```
+```bash
+cd backend
+uv install  # Install Python 3.13 + dependencies
+```
 
-3. **Run the service:**
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+### 2. Configuration
 
-4. **Access the API:**
-   - API docs: http://localhost:8000/docs
-   - Health check: http://localhost:8000/health
+Create `.env` file:
 
-## Deployment (Fly.io)
+```bash
+# Required
+MONGO_URI=mongodb://localhost:27017/forge
+OPENROUTER_API_KEY=your_openrouter_api_key
+FORGE_AI_API_KEY=your_secure_webhook_key
 
-1. **Install Fly CLI** and login
+# Optional
+ENVIRONMENT=development
+LOG_LEVEL=INFO
+```
 
-2. **Deploy:**
-   ```bash
-   fly deploy
-   ```
+### 3. Database Setup
 
-3. **Set secrets:**
-   ```bash
-   fly secrets set MONGO_URI="your_mongodb_connection_string"
-   fly secrets set OPENROUTER_API_KEY="your_openrouter_api_key"
-   fly secrets set FORGE_AI_API_KEY="your_api_key"
-   ```
+```bash
+# Initialize database with AI prompts
+uv run seed-prompts
+```
 
-## API Endpoints
+This creates 3 prompts in MongoDB:
+- `contribution_triage_agent` (fast triage decisions)  
+- `direct_response_agent` (direct answers to questions)
+- `synthesis_facilitator_default` (structured synthesis)
 
-### POST /api/synthesize
-Process team conversations and generate synthesis + individual briefings.
+### 4. Run
 
-**Request:**
+```bash
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## 📊 Data Models
+
+### MongoDB Collections
+
+**`forges`** - Collaboration workspaces
+**`contributions`** - Append-only activity log  
+**`ai_prompts`** - Dynamic prompt + model configuration
+
+Each prompt has:
 ```json
 {
-  "forge_id": "abc123"
+  "parameters": {
+    "model": "provider/model-name",
+    "temperature": 0.1,
+    "max_tokens": 100,
+    "response_format": { "type": "json_object" }
+  }
 }
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Synthesis completed successfully",
-  "synthesis_id": "1234567890"
-}
+## 🔗 API Endpoints
+
+### Webhook (for SvelteKit BFF)
+- `POST /api/webhook/process-contribution` - Process new contributions
+
+### Health & Status
+- `GET /health` - Service health
+- `GET /api/status` - Detailed status
+- `GET /webhook/health` - Webhook health
+
+## 🛠️ Development
+
+### Generate JSON Schemas
+```bash
+uv run generate-schemas
+```
+Creates schemas in `../schemas/json/` for frontend consumption.
+
+### Database Management
+```bash
+# Seed initial prompts
+uv run seed-prompts
+
+# Re-run is safe (skips existing)
+uv run seed-prompts
 ```
 
-### POST /api/chat
-Handle chat messages and questions from team members.
+## 🔄 Workflow
 
-**Request:**
-```json
-{
-  "forge_id": "abc123",
-  "role_id": "1",
-  "message": "What should I focus on first?",
-  "is_question": true
-}
-```
+1. **SvelteKit BFF** posts webhook: `{ forgeId, newContributionId }`
+2. **Fast Response**: `202 Accepted` 
+3. **Background AI**:
+   - Triage: What action? (LOG_ONLY/ANSWER_DIRECTLY/SYNTHESIZE)
+   - Action: Execute with prompt-specific model & parameters from database
+   - Result: Save to database
+4. **Frontend Polling**: Checks for updates
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Chat message processed successfully",
-  "ai_response": "Based on your briefing, I'd suggest starting with..."
-}
-```
+## 🎯 Benefits
 
-## Authentication
-
-All endpoints require an API key in the Authorization header:
-```
-Authorization: Bearer your_api_key
-``` 
+- **Flexible**: Change AI models per prompt without code changes
+- **Cost-efficient**: Use appropriate models for each task (fast for decisions, powerful for complex work)
+- **Maintainable**: No hardcoded prompts or model configuration
+- **Scalable**: Database-driven, async processing
+- **Observable**: Structured logging throughout 

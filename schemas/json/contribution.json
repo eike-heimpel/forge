@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "AIResponseContent": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "AIResponseContent",
+      "type": "object"
+    },
+    "AISynthesisContent": {
+      "properties": {
+        "structured": {
+          "$ref": "#/$defs/AISynthesisStructured"
+        }
+      },
+      "required": [
+        "structured"
+      ],
+      "title": "AISynthesisContent",
+      "type": "object"
+    },
+    "AISynthesisStructured": {
+      "properties": {
+        "currentState": {
+          "title": "Currentstate",
+          "type": "string"
+        },
+        "emergingConsensus": {
+          "title": "Emergingconsensus",
+          "type": "string"
+        },
+        "outstandingQuestions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Outstandingquestions",
+          "type": "array"
+        },
+        "nextStepsNeeded": {
+          "title": "Nextstepsneeded",
+          "type": "string"
+        }
+      },
+      "required": [
+        "currentState",
+        "emergingConsensus",
+        "outstandingQuestions",
+        "nextStepsNeeded"
+      ],
+      "title": "AISynthesisStructured",
+      "type": "object"
+    },
+    "ContributionType": {
+      "enum": [
+        "USER_MESSAGE",
+        "AI_RESPONSE",
+        "AI_SYNTHESIS"
+      ],
+      "title": "ContributionType",
+      "type": "string"
+    },
+    "UserMessageContent": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "UserMessageContent",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Id"
+    },
+    "forgeId": {
+      "title": "Forgeid",
+      "type": "string"
+    },
+    "authorId": {
+      "title": "Authorid",
+      "type": "string"
+    },
+    "type": {
+      "$ref": "#/$defs/ContributionType"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    },
+    "content": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UserMessageContent"
+        },
+        {
+          "$ref": "#/$defs/AIResponseContent"
+        },
+        {
+          "$ref": "#/$defs/AISynthesisContent"
+        }
+      ],
+      "title": "Content"
+    },
+    "sourceContributionIds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": [],
+      "title": "Sourcecontributionids"
+    }
+  },
+  "required": [
+    "forgeId",
+    "authorId",
+    "type",
+    "content"
+  ],
+  "title": "Contribution",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "generated_from": "forge-ai-backend (automated)",
+  "version": "1.0.0"
+}

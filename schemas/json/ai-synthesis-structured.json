@@ -1,0 +1,34 @@
+{
+  "properties": {
+    "currentState": {
+      "title": "Currentstate",
+      "type": "string"
+    },
+    "emergingConsensus": {
+      "title": "Emergingconsensus",
+      "type": "string"
+    },
+    "outstandingQuestions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Outstandingquestions",
+      "type": "array"
+    },
+    "nextStepsNeeded": {
+      "title": "Nextstepsneeded",
+      "type": "string"
+    }
+  },
+  "required": [
+    "currentState",
+    "emergingConsensus",
+    "outstandingQuestions",
+    "nextStepsNeeded"
+  ],
+  "title": "AISynthesisStructured",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "generated_from": "forge-ai-backend (automated)",
+  "version": "1.0.0"
+}

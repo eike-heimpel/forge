@@ -1,0 +1,127 @@
+{
+  "$defs": {
+    "PromptParameters": {
+      "properties": {
+        "model": {
+          "default": "google/gemini-2.5-flash",
+          "title": "Model",
+          "type": "string"
+        },
+        "temperature": {
+          "default": 0.7,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "max_tokens": {
+          "default": 1000,
+          "title": "Max Tokens",
+          "type": "integer"
+        },
+        "response_format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResponseFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "PromptParameters",
+      "type": "object"
+    },
+    "PromptStatus": {
+      "enum": [
+        "active",
+        "inactive",
+        "deprecated"
+      ],
+      "title": "PromptStatus",
+      "type": "string"
+    },
+    "ResponseFormat": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ResponseFormat",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Id"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/PromptStatus",
+      "default": "active"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "parameters": {
+      "$ref": "#/$defs/PromptParameters"
+    },
+    "expected_vars": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Expected Vars",
+      "type": "array"
+    },
+    "template": {
+      "title": "Template",
+      "type": "string"
+    },
+    "assertivenessLevel": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Assertivenesslevel"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "description",
+    "parameters",
+    "expected_vars",
+    "template"
+  ],
+  "title": "AIPrompt",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "generated_from": "forge-ai-backend (automated)",
+  "version": "1.0.0"
+}

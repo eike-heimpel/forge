@@ -1,0 +1,12 @@
+{
+  "title": "MemberRole",
+  "type": "string",
+  "enum": [
+    "owner",
+    "member"
+  ],
+  "description": "Enumeration of MemberRole values",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "generated_from": "forge-ai-backend (automated)",
+  "version": "1.0.0"
+}

@@ -1,0 +1,93 @@
+{
+  "$defs": {
+    "ForgeMember": {
+      "properties": {
+        "_id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/MemberRole"
+        }
+      },
+      "required": [
+        "_id",
+        "role"
+      ],
+      "title": "ForgeMember",
+      "type": "object"
+    },
+    "ForgeStatus": {
+      "enum": [
+        "ACTIVE",
+        "ARCHIVED",
+        "COMPLETED"
+      ],
+      "title": "ForgeStatus",
+      "type": "string"
+    },
+    "MemberRole": {
+      "enum": [
+        "owner",
+        "member"
+      ],
+      "title": "MemberRole",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Id"
+    },
+    "goal": {
+      "title": "Goal",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ForgeStatus",
+      "default": "ACTIVE"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    },
+    "lastSynthesisId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lastsynthesisid"
+    },
+    "members": {
+      "items": {
+        "$ref": "#/$defs/ForgeMember"
+      },
+      "title": "Members",
+      "type": "array"
+    }
+  },
+  "required": [
+    "goal",
+    "members"
+  ],
+  "title": "Forge",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "generated_from": "forge-ai-backend (automated)",
+  "version": "1.0.0"
+}
