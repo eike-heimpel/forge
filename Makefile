@@ -1,7 +1,7 @@
 # Forge Project Makefile
 # Orchestrates tasks across frontend (Node.js) and backend (Python/uv)
 
-.PHONY: help setup install clean dev backend frontend backend-dev backend-prod seed-prompts generate-schemas test lint
+.PHONY: help setup install clean dev backend frontend backend-dev backend-prod seed-prompts seed-prompts-force generate-schemas test lint
 
 # Default target
 help:
@@ -21,6 +21,8 @@ help:
 	@echo ""
 	@echo "🤖 Backend Tasks:"
 	@echo "  make seed-prompts   - Initialize AI prompts in database"
+	@echo "  make seed-prompts-force - Initialize AI prompts (overwrite existing)"
+	@echo "  make seed-prompts ARGS='--force' - Pass custom args to seed script"
 	@echo "  make generate-schemas - Generate JSON schemas from Pydantic models"
 	@echo ""  
 	@echo "🧪 Testing & Quality:"
@@ -84,7 +86,11 @@ frontend:
 
 seed-prompts:
 	@echo "🌱 Seeding AI prompts in database..."
-	cd backend && uv run seed-prompts
+	cd backend && uv run seed-prompts $(ARGS)
+
+seed-prompts-force:
+	@echo "🌱 Seeding AI prompts in database (force overwrite)..."
+	cd backend && uv run seed-prompts --force
 
 generate-schemas:
 	@echo "📋 Generating JSON schemas..."

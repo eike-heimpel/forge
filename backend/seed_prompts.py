@@ -5,8 +5,10 @@ This is run manually to set up the database, NOT automatically by the applicatio
 
 Usage:
   uv run python seed_prompts.py
+  uv run python seed_prompts.py --force  # Overwrite existing prompts
 """
 
+import argparse
 import asyncio
 import os
 from app.services.database import init_database
@@ -14,9 +16,12 @@ from app.models.schemas import AIPrompt, PromptStatus, PromptParameters, Respons
 from app.config import settings
 
 
-async def seed_prompts():
+async def seed_prompts(force_overwrite: bool = False):
     """Seed the database with initial prompts"""
     print("🌱 Seeding database with initial AI prompts...")
+    
+    if force_overwrite:
+        print("⚠️  Force mode enabled - will overwrite existing prompts")
     
     if not settings.mongo_uri:
         print("❌ MONGO_URI not configured. Please set up your .env file.")
@@ -32,7 +37,7 @@ async def seed_prompts():
             status=PromptStatus.ACTIVE,
             description="Analyzes a new user contribution to decide the next AI action. Uses a fast, cheap model.",
             parameters=PromptParameters(
-                model="openai/gpt-4o-mini",
+                model="openrouter/google/gemini-2.5-flash-lite",
                 temperature=0.1,
                 max_tokens=100,
                 response_format=ResponseFormat(type="json_object")
@@ -55,18 +60,40 @@ Respond only with a JSON object: {"action": "CHOSEN_ACTION"}"""
             name="direct_response_agent",
             version=1,
             status=PromptStatus.ACTIVE,
-            description="Provides direct, helpful responses to questions based on conversation context.",
+            description="AI facilitator that provides helpful, contextual responses to team members' questions using project context and briefings.",
             parameters=PromptParameters(
-                model="openai/gpt-4o",
+                model="openrouter/google/gemini-2.5-flash",
                 temperature=0.7,
                 max_tokens=1000
             ),
-            expected_vars=["context"],
-            template="""Based on the conversation context below, provide a direct, helpful response to the latest message.
+            expected_vars=["role", "current_briefing", "synthesis", "chat_history_text"],
+            template="""You are the AI facilitator for {{ role['name'] }} ({{ role['title'] }}). They have asked you a question and expect a helpful response.
 
-{{ context }}
+**Current Briefing for {{ role['name'] }}**:
+{{ current_briefing }}
 
-Please provide a direct, helpful response to the latest message."""
+**Project Context**:
+{{ synthesis }}
+
+**Chat History**:
+{{ chat_history_text }}
+
+**CRITICAL CONSTRAINTS:**
+- For FACTUAL questions about the project: Only use information from the briefing, project context, and chat history above
+- For PROCESS/FACILITATION questions: You may use your knowledge of facilitation methods and project management
+- If factual information isn't available in the provided context, clearly state "I don't have that information from our discussion" rather than guessing
+- Never inject external knowledge about the subject matter or make assumptions beyond what was shared
+
+**Your Task**: Provide a concise, helpful response to their latest question:
+
+- Reference their briefing and project context when relevant
+- Ask follow-up questions to move their work forward  
+- Stay facilitative, not directive - help them think through it
+- Keep it to 2-3 sentences max
+- Be directly helpful and specific
+- Be honest about information gaps
+
+Respond with your answer directly (no JSON formatting needed):"""
         ),
         
         AIPrompt(
@@ -74,38 +101,80 @@ Please provide a direct, helpful response to the latest message."""
             version=1,
             status=PromptStatus.ACTIVE,
             assertivenessLevel=2,
-            description="The default prompt for generating a full synthesis using GPT-4o with structured JSON output.",
+            description="Comprehensive synthesis prompt that creates briefing packages with overall context and personalized briefings for each team member.",
             parameters=PromptParameters(
-                model="openai/gpt-4o",
+                model="openrouter/google/gemini-2.5-flash",
                 temperature=0.2,
                 max_tokens=2048,
                 response_format=ResponseFormat(type="json_object")
             ),
-            expected_vars=["goal", "history"],
-            template="""You are Forge, an AI facilitator. Your goal is to guide the team to achieve: {{ goal }}
+            expected_vars=["goal", "roles_text", "contributions_text"],
+            template="""You are the lead AI facilitator managing a team discussion. Create a comprehensive briefing package that includes overall context and personalized briefings for each team member.
 
-The full conversation history is below:
-{{ history }}
+**Session Goal**: {{ goal }}
 
-Synthesize the current state, emerging consensus, and outstanding questions into a structured JSON object with these fields:
-- currentState: Brief summary of where the discussion stands
-- emergingConsensus: What the team seems to be agreeing on
-- outstandingQuestions: Array of questions that still need answers
-- nextStepsNeeded: What actions should happen next
+**Team**: {{ roles_text }}
 
-Respond only with valid JSON."""
+**Full Conversation**: {{ contributions_text }}
+
+**Your Task**: Output valid JSON with this exact structure:
+
+{
+  "overallContext": "COMPREHENSIVE facilitator notes for full team context. Include: key decisions made, critical information shared, specific next steps identified, open questions, context dependencies between roles, priorities, strategic context, and any important nuances. Use bullet points and structure this well - it should be thorough and detailed to give complete situational awareness.",
+  
+  "individualBriefings": {
+    "ROLE_ID_1": {
+      "briefing": "Hi [Name], 2-3 concise sentences max about what's most relevant to your role right now. Be direct and specific.",
+      "questions": ["Specific question 1 to move their work forward", "Specific question 2 if needed"],
+      "todos": ["Concrete action item 1 if clear from context", "Action item 2 if applicable"],
+      "priorities": "Single sentence about what they should focus on first"
+    },
+    "ROLE_ID_2": {
+      "briefing": "Hi [Name], ...",
+      "questions": ["..."],
+      "todos": ["..."],
+      "priorities": "..."
+    }
+  }
+}
+
+**Guidelines:**
+
+**For Overall Context (be comprehensive):**
+- Include all key decisions, information, and strategic context
+- Use bullet points and clear structure
+- Cover dependencies between team members
+- Note priorities and open questions  
+- Be thorough - this is the master context for facilitators
+- Include nuances and important details that inform the situation
+
+**For Individual Briefings (be concise):**
+- Keep briefings to 2-3 sentences MAX - be concise and scannable
+- Focus on what's immediately actionable and relevant to their role
+- Questions should be specific and focused (1-2 max)
+- Todos only if they clearly emerged from discussion
+- Priorities should be one clear, focused sentence
+- Make it quick to read and understand at a glance
+
+**CRITICAL: Output ONLY the raw JSON object - no markdown code blocks, no ```json```, no additional text or formatting. Start directly with { and end with }.**"""
         )
     ]
     
     created_count = 0
+    updated_count = 0
     skipped_count = 0
     
     for prompt in prompts_to_create:
         # Check if prompt already exists
         existing = await db.get_active_prompt(prompt.name)
-        if existing:
+        if existing and not force_overwrite:
             print(f"⏭️  Skipped '{prompt.name}' (already exists)")
             skipped_count += 1
+        elif existing and force_overwrite:
+            # Update existing prompt
+            await db.create_prompt(prompt)  # This will create a new version
+            print(f"🔄 Updated '{prompt.name}' using model '{prompt.parameters.model}'")
+            updated_count += 1
         else:
             await db.create_prompt(prompt)
             print(f"✅ Created '{prompt.name}' using model '{prompt.parameters.model}'")
@@ -113,14 +182,20 @@ Respond only with valid JSON."""
     
     print(f"\n🎉 Seeding complete!")
     print(f"   Created: {created_count} prompts")
-    print(f"   Skipped: {skipped_count} prompts (already existed)")
+    if updated_count > 0:
+        print(f"   Updated: {updated_count} prompts")
+    print(f"   Skipped: {skipped_count} prompts")
     
-    await db.disconnect()
 
 
 def main():
     """Main entry point for the seed script"""
-    asyncio.run(seed_prompts())
+    parser = argparse.ArgumentParser(description="Seed database with AI prompts")
+    parser.add_argument("--force", action="store_true", 
+                      help="Overwrite existing prompts instead of skipping them")
+    
+    args = parser.parse_args()
+    asyncio.run(seed_prompts(force_overwrite=args.force))
 
 
 if __name__ == "__main__":
